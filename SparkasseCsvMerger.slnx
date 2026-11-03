@@ -1,0 +1,7 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/SparkasseCsvMerger.Core/SparkasseCsvMerger.Core.csproj" />
+    <Project Path="src/SparkasseCsvMerger.Gui/SparkasseCsvMerger.Gui.csproj" />
+    <Project Path="src/SparkasseCsvMerger/SparkasseCsvMerger.csproj" />
+  </Folder>
+</Solution>
