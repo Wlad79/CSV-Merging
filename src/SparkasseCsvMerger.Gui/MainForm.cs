@@ -1,33 +1,11 @@
+using System.ComponentModel;
 using System.Diagnostics;
 using SparkasseCsvMerger.Core;
 
 namespace SparkasseCsvMerger.Gui;
 
-internal sealed class MainForm : Form
+internal sealed partial class MainForm : Form
 {
-    private readonly ListBox _sourceList = new();
-    private readonly TextBox _targetFolderBox = new();
-    private readonly TextBox _fileNameBox = new();
-    private readonly Label _previewLabel = new();
-    private readonly CheckBox _dedupeCheck = new();
-    private readonly CheckBox _sortCheck = new();
-    private readonly CheckBox _recursiveCheck = new();
-    private readonly TextBox _searchBox = new();
-    private readonly Button _searchButton = new();
-    private readonly TextBox _logBox = new();
-    private readonly Button _startButton = new();
-    private readonly Button _cancelButton = new();
-    private readonly Button _openFileButton = new();
-    private readonly Button _openFolderButton = new();
-    private readonly Button _addFolderButton = new();
-    private readonly Button _addFilesButton = new();
-    private readonly Button _removeButton = new();
-    private readonly GroupBox _sourceGroup = new();
-    private readonly GroupBox _targetGroup = new();
-    private readonly FlowLayoutPanel _optionsPanel = new();
-    private readonly ToolStripStatusLabel _statusLabel = new();
-    private readonly ToolStripProgressBar _statusProgress = new();
-
     private CancellationTokenSource? _cancellation;
     private string? _lastOutput;
     private MergeSummary? _lastSummary;
@@ -35,319 +13,15 @@ internal sealed class MainForm : Form
 
     public MainForm()
     {
-        BuildUi();
+        InitializeComponent();
+
+        // Der WinForms-Designer von Visual Studio führt diesen Konstruktor nicht aus.
+        // Die Prüfung schützt nur davor, dass beim Entwurf Einstellungen geladen werden.
+        if (LicenseManager.UsageMode == LicenseUsageMode.Designtime)
+            return;
+
         ApplySettings(GuiSettings.Load());
         UpdatePreview();
-    }
-
-    private void BuildUi()
-    {
-        SuspendLayout();
-
-        Text = "Sparkasse CSV Merger";
-        StartPosition = FormStartPosition.CenterScreen;
-        ClientSize = new Size(960, 740);
-        MinimumSize = new Size(820, 660);
-        AutoScaleMode = AutoScaleMode.Dpi;
-        AllowDrop = true;
-        DragEnter += OnDragEnter;
-        DragDrop += OnDragDrop;
-
-        var root = new TableLayoutPanel
-        {
-            Dock = DockStyle.Fill,
-            ColumnCount = 1,
-            RowCount = 6,
-            Padding = new Padding(12, 12, 12, 6)
-        };
-
-        root.RowStyles.Add(new RowStyle(SizeType.Percent, 38F));
-        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 118F));
-        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 50F));
-        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 46F));
-        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 52F));
-        root.RowStyles.Add(new RowStyle(SizeType.Percent, 62F));
-
-        root.Controls.Add(BuildSourceGroup(), 0, 0);
-        root.Controls.Add(BuildTargetGroup(), 0, 1);
-        root.Controls.Add(BuildOptionsPanel(), 0, 2);
-        root.Controls.Add(BuildSearchPanel(), 0, 3);
-        root.Controls.Add(BuildButtonPanel(), 0, 4);
-        root.Controls.Add(BuildLogGroup(), 0, 5);
-
-        Controls.Add(root);
-        Controls.Add(BuildStatusStrip());
-
-        ResumeLayout(false);
-        PerformLayout();
-    }
-
-    private GroupBox BuildSourceGroup()
-    {
-        _sourceGroup.Text = "1. Quellen (Ordner, ZIP-Archiv oder CSV-Datei)";
-        _sourceGroup.Dock = DockStyle.Fill;
-        _sourceGroup.Padding = new Padding(10, 6, 10, 10);
-
-        var layout = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1 };
-        layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
-        layout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 182F));
-
-        _sourceList.Dock = DockStyle.Fill;
-        _sourceList.SelectionMode = SelectionMode.MultiExtended;
-        _sourceList.IntegralHeight = false;
-        _sourceList.HorizontalScrollbar = true;
-        _sourceList.AccessibleName = "Quellen";
-        _sourceList.AllowDrop = true;
-        _sourceList.DragEnter += OnDragEnter;
-        _sourceList.DragDrop += OnDragDrop;
-        _sourceList.KeyDown += OnSourceListKeyDown;
-        _sourceList.DoubleClick += (_, _) => OpenSelectedSource();
-
-        var buttons = new FlowLayoutPanel
-        {
-            Dock = DockStyle.Fill,
-            FlowDirection = FlowDirection.TopDown,
-            WrapContents = false,
-            Padding = new Padding(8, 0, 0, 0)
-        };
-
-        ConfigureSourceButton(_addFolderButton, "Ordner hinzufügen…");
-        _addFolderButton.Click += (_, _) => AddFolder();
-
-        ConfigureSourceButton(_addFilesButton, "Dateien hinzufügen…");
-        _addFilesButton.Click += (_, _) => AddFiles();
-
-        ConfigureSourceButton(_removeButton, "Entfernen");
-        _removeButton.Click += (_, _) => RemoveSelectedSources();
-
-        var hint = new Label
-        {
-            Text = "Tipp: Ordner und Dateien\nkönnen auch hierher\ngezogen werden.",
-            AutoSize = true,
-            ForeColor = SystemColors.GrayText,
-            Margin = new Padding(2, 12, 0, 0)
-        };
-
-        buttons.Controls.AddRange(new Control[] { _addFolderButton, _addFilesButton, _removeButton, hint });
-
-        layout.Controls.Add(_sourceList, 0, 0);
-        layout.Controls.Add(buttons, 1, 0);
-        _sourceGroup.Controls.Add(layout);
-        return _sourceGroup;
-    }
-
-    private static void ConfigureSourceButton(Button button, string text)
-    {
-        button.Text = text;
-        button.Size = new Size(164, 30);
-        button.Margin = new Padding(0, 0, 0, 6);
-    }
-
-    private GroupBox BuildTargetGroup()
-    {
-        _targetGroup.Text = "2. Zieldatei";
-        _targetGroup.Dock = DockStyle.Fill;
-        _targetGroup.Padding = new Padding(10, 6, 10, 8);
-
-        var layout = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 3, RowCount = 3 };
-        layout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-        layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
-        layout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 126F));
-        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 30F));
-        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 30F));
-        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 22F));
-
-        var folderLabel = new Label
-        {
-            Text = "Zielordner:",
-            AutoSize = true,
-            Anchor = AnchorStyles.Left,
-            Margin = new Padding(0, 6, 10, 0)
-        };
-
-        _targetFolderBox.Dock = DockStyle.Fill;
-        _targetFolderBox.Margin = new Padding(0, 2, 8, 2);
-        _targetFolderBox.AccessibleName = "Zielordner";
-        _targetFolderBox.TextChanged += (_, _) => UpdatePreview();
-
-        var browseButton = new Button
-        {
-            Text = "Durchsuchen…",
-            Dock = DockStyle.Fill,
-            Margin = new Padding(0, 1, 0, 3)
-        };
-        browseButton.Click += (_, _) => BrowseTargetFolder();
-
-        var nameLabel = new Label
-        {
-            Text = "Dateiname:",
-            AutoSize = true,
-            Anchor = AnchorStyles.Left,
-            Margin = new Padding(0, 6, 10, 0)
-        };
-
-        _fileNameBox.Dock = DockStyle.Fill;
-        _fileNameBox.Margin = new Padding(0, 2, 8, 2);
-        _fileNameBox.AccessibleName = "Dateiname";
-        _fileNameBox.TextChanged += (_, _) => UpdatePreview();
-
-        _previewLabel.AutoEllipsis = true;
-        _previewLabel.Dock = DockStyle.Fill;
-        _previewLabel.TextAlign = ContentAlignment.MiddleLeft;
-        _previewLabel.ForeColor = SystemColors.GrayText;
-        _previewLabel.Margin = new Padding(0);
-
-        layout.Controls.Add(folderLabel, 0, 0);
-        layout.Controls.Add(_targetFolderBox, 1, 0);
-        layout.Controls.Add(browseButton, 2, 0);
-        layout.Controls.Add(nameLabel, 0, 1);
-        layout.Controls.Add(_fileNameBox, 1, 1);
-        layout.Controls.Add(_previewLabel, 1, 2);
-        layout.SetColumnSpan(_previewLabel, 2);
-
-        _targetGroup.Controls.Add(layout);
-        return _targetGroup;
-    }
-
-    private FlowLayoutPanel BuildOptionsPanel()
-    {
-        _optionsPanel.Dock = DockStyle.Fill;
-        _optionsPanel.FlowDirection = FlowDirection.LeftToRight;
-        _optionsPanel.WrapContents = false;
-        _optionsPanel.Padding = new Padding(4, 10, 0, 0);
-
-        _dedupeCheck.Text = "Duplikate entfernen";
-        _dedupeCheck.AutoSize = true;
-        _dedupeCheck.Checked = true;
-        _dedupeCheck.Margin = new Padding(0, 0, 26, 0);
-
-        _sortCheck.Text = "Nach Datum sortieren";
-        _sortCheck.AutoSize = true;
-        _sortCheck.Checked = true;
-        _sortCheck.Margin = new Padding(0, 0, 26, 0);
-
-        _recursiveCheck.Text = "Unterordner einbeziehen";
-        _recursiveCheck.AutoSize = true;
-        _recursiveCheck.Checked = true;
-
-        _optionsPanel.Controls.AddRange(new Control[] { _dedupeCheck, _sortCheck, _recursiveCheck });
-        return _optionsPanel;
-    }
-
-    private TableLayoutPanel BuildSearchPanel()
-    {
-        var panel = new TableLayoutPanel
-        {
-            Dock = DockStyle.Fill,
-            ColumnCount = 3,
-            RowCount = 1,
-            Padding = new Padding(4, 6, 0, 0)
-        };
-
-        panel.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-        panel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
-        panel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 160F));
-
-        var label = new Label
-        {
-            Text = "Suche im Ergebnis:",
-            AutoSize = true,
-            Anchor = AnchorStyles.Left,
-            Margin = new Padding(0, 6, 10, 0)
-        };
-
-        _searchBox.Dock = DockStyle.Fill;
-        _searchBox.Margin = new Padding(0, 2, 8, 2);
-        _searchBox.AccessibleName = "Suchbegriff";
-        _searchBox.PlaceholderText = "Begriff – beim Zusammenführen werden nur Treffer gespeichert";
-        _searchBox.KeyDown += OnSearchBoxKeyDown;
-
-        _searchButton.Text = "Treffer anzeigen";
-        _searchButton.Dock = DockStyle.Fill;
-        _searchButton.Margin = new Padding(0, 1, 0, 1);
-        _searchButton.Click += (_, _) => ShowMatches();
-
-        panel.Controls.Add(label, 0, 0);
-        panel.Controls.Add(_searchBox, 1, 0);
-        panel.Controls.Add(_searchButton, 2, 0);
-        return panel;
-    }
-
-    private FlowLayoutPanel BuildButtonPanel()
-    {
-        var panel = new FlowLayoutPanel
-        {
-            Dock = DockStyle.Fill,
-            FlowDirection = FlowDirection.LeftToRight,
-            WrapContents = false,
-            Padding = new Padding(0, 6, 0, 6)
-        };
-
-        _startButton.Text = "Zusammenführen";
-        _startButton.Size = new Size(172, 34);
-        _startButton.Font = new Font(Font, FontStyle.Bold);
-        _startButton.Margin = new Padding(0, 0, 10, 0);
-        _startButton.Click += OnStartClicked;
-
-        _cancelButton.Text = "Abbrechen";
-        _cancelButton.Size = new Size(110, 34);
-        _cancelButton.Enabled = false;
-        _cancelButton.Margin = new Padding(0, 0, 26, 0);
-        _cancelButton.Click += (_, _) => _cancellation?.Cancel();
-
-        _openFileButton.Text = "Ergebnis öffnen";
-        _openFileButton.Size = new Size(140, 34);
-        _openFileButton.Enabled = false;
-        _openFileButton.Margin = new Padding(0, 0, 10, 0);
-        _openFileButton.Click += (_, _) => OpenInShell(_lastOutput);
-
-        _openFolderButton.Text = "Zielordner öffnen";
-        _openFolderButton.Size = new Size(160, 34);
-        _openFolderButton.Enabled = false;
-        _openFolderButton.Click += (_, _) => OpenInShell(
-            _lastOutput is null ? null : Path.GetDirectoryName(_lastOutput));
-
-        panel.Controls.AddRange(new Control[] { _startButton, _cancelButton, _openFileButton, _openFolderButton });
-        return panel;
-    }
-
-    private GroupBox BuildLogGroup()
-    {
-        var group = new GroupBox
-        {
-            Text = "Protokoll",
-            Dock = DockStyle.Fill,
-            Padding = new Padding(10, 6, 10, 10)
-        };
-
-        _logBox.Dock = DockStyle.Fill;
-        _logBox.Multiline = true;
-        _logBox.ReadOnly = true;
-        _logBox.ScrollBars = ScrollBars.Both;
-        _logBox.WordWrap = false;
-        _logBox.BackColor = Color.FromArgb(252, 252, 252);
-        _logBox.Font = new Font("Consolas", 9F);
-        _logBox.AccessibleName = "Protokoll";
-
-        group.Controls.Add(_logBox);
-        return group;
-    }
-
-    private StatusStrip BuildStatusStrip()
-    {
-        var strip = new StatusStrip();
-
-        _statusLabel.Text = "Bereit.";
-        _statusLabel.Spring = true;
-        _statusLabel.TextAlign = ContentAlignment.MiddleLeft;
-
-        _statusProgress.Style = ProgressBarStyle.Marquee;
-        _statusProgress.Width = 140;
-        _statusProgress.Visible = false;
-
-        strip.Items.Add(_statusLabel);
-        strip.Items.Add(_statusProgress);
-        return strip;
     }
 
     // ---------------------------------------------------------------- settings
@@ -390,6 +64,14 @@ internal sealed class MainForm : Form
     }
 
     // ------------------------------------------------------------------ sources
+
+    private void OnAddFolderClicked(object? sender, EventArgs e) => AddFolder();
+
+    private void OnAddFilesClicked(object? sender, EventArgs e) => AddFiles();
+
+    private void OnRemoveClicked(object? sender, EventArgs e) => RemoveSelectedSources();
+
+    private void OnSourceListDoubleClick(object? sender, EventArgs e) => OpenSelectedSource();
 
     private void AddFolder()
     {
@@ -518,6 +200,8 @@ internal sealed class MainForm : Form
 
     // ------------------------------------------------------------------- target
 
+    private void OnBrowseTargetClicked(object? sender, EventArgs e) => BrowseTargetFolder();
+
     private void BrowseTargetFolder()
     {
         using var dialog = new FolderBrowserDialog
@@ -537,6 +221,8 @@ internal sealed class MainForm : Form
             UpdatePreview();
         }
     }
+
+    private void OnOutputPathChanged(object? sender, EventArgs e) => UpdatePreview();
 
     private void UpdatePreview()
     {
@@ -788,6 +474,15 @@ internal sealed class MainForm : Form
     }
 
     // ------------------------------------------------------------------- helper
+
+    private void OnCancelClicked(object? sender, EventArgs e) => _cancellation?.Cancel();
+
+    private void OnOpenFileClicked(object? sender, EventArgs e) => OpenInShell(_lastOutput);
+
+    private void OnOpenFolderClicked(object? sender, EventArgs e) => OpenInShell(
+        _lastOutput is null ? null : Path.GetDirectoryName(_lastOutput));
+
+    private void OnSearchButtonClicked(object? sender, EventArgs e) => ShowMatches();
 
     private void OnSearchBoxKeyDown(object? sender, KeyEventArgs e)
     {

@@ -27,6 +27,20 @@ publish-gui.cmd
 
 Zum Entwickeln geht auch `dotnet run --project src/SparkasseCsvMerger.Gui`.
 
+### GUI in Visual Studio bearbeiten
+
+Die Oberfläche liegt im normalen WinForms-Designer-Format:
+
+- `src/SparkasseCsvMerger.Gui/MainForm.Designer.cs` – Steuerelemente, Layout,
+  Eigenschaften und Ereignis-Verdrahtung (wird vom Designer gepflegt)
+- `src/SparkasseCsvMerger.Gui/MainForm.cs` – Logik und Ereignis-Handler
+
+`SparkasseCsvMerger.slnx` in Visual Studio öffnen und im Projekt
+`SparkasseCsvMerger.Gui` die Datei `MainForm.cs` doppelklicken – der Formular-Designer
+öffnet sich. Layout und Eigenschaften dort ändern; neue Ereignis-Handler legt Visual
+Studio automatisch in `MainForm.cs` an. Die Designer-Datei nicht von Hand umbauen,
+sondern über den Designer bearbeiten.
+
 ### Hinweis zu Smart App Control
 
 Auf Windows 11 mit aktiver **Smart App Control** (Windows-Sicherheit → App- und
@@ -34,6 +48,11 @@ Browsersteuerung) blockiert das System frisch gebaute, nicht signierte DLLs
 (`FileLoadException 0x800711C7`). Die normale Build-Ausgabe der GUI startet dann
 nicht. Die mit `publish-gui.cmd` erzeugte **Single-File-EXE** läuft auch mit
 aktiver Smart App Control – deshalb ist sie der empfohlene Weg.
+
+Der Visual-Studio-Designer lädt zum Anzeigen die frisch gebaute Projekt-DLL. Bei
+aktiver Smart App Control kann er deshalb mit einer Ladefehlermeldung abbrechen.
+In dem Fall Smart App Control für die Entwicklung deaktivieren oder den Designer
+auf einem Rechner ohne Smart App Control verwenden.
 
 Bedienung:
 
