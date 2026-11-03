@@ -7,7 +7,7 @@ in ZIP-Archiven oder Unterordnern liegen – zu **einer** CSV-Datei zusammenfüh
 ## Voraussetzungen
 
 - .NET 10 SDK (`dotnet --version` sollte `10.x` liefern)
-- Windows für die GUI (WinForms)
+- Windows für die GUI (WinForms): in Win-Settings "Smart App Control" is deactivated
 
 ## GUI (empfohlen)
 
