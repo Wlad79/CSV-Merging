@@ -259,7 +259,7 @@ internal sealed class MainForm : Form
         _searchBox.Dock = DockStyle.Fill;
         _searchBox.Margin = new Padding(0, 2, 8, 2);
         _searchBox.AccessibleName = "Suchbegriff";
-        _searchBox.PlaceholderText = "Begriff eingeben – Groß-/Kleinschreibung wird ignoriert";
+        _searchBox.PlaceholderText = "Begriff – beim Zusammenführen werden nur Treffer gespeichert";
         _searchBox.KeyDown += OnSearchBoxKeyDown;
 
         _searchButton.Text = "Treffer anzeigen";
@@ -683,7 +683,8 @@ internal sealed class MainForm : Form
             Recursive = _recursiveCheck.Checked,
             Sort = _sortCheck.Checked,
             RemoveDuplicates = _dedupeCheck.Checked,
-            QuoteAll = true
+            QuoteAll = true,
+            SearchText = _searchBox.Text.Trim().Length == 0 ? null : _searchBox.Text.Trim()
         };
 
         error = string.Empty;
@@ -717,6 +718,11 @@ internal sealed class MainForm : Form
                     _statusLabel.Text = "Zeilen werden zusammengeführt…";
                     break;
 
+                case MergeStage.Searching:
+                    AppendLog(progress.Message);
+                    _statusLabel.Text = "Suche wird angewendet…";
+                    break;
+
                 case MergeStage.Writing:
                     _statusLabel.Text = "Zieldatei wird geschrieben…";
                     break;
@@ -732,14 +738,24 @@ internal sealed class MainForm : Form
         AppendLog(string.Empty);
         AppendLog($"Fertig in {summary.Elapsed.TotalSeconds:0.0} s");
         AppendLog($"  Quellen   : {summary.MergedSourceCount} zusammengeführt, {summary.SkippedSourceCount} übersprungen");
-        AppendLog($"  Zeilen    : {summary.RowsRead} gelesen, {summary.DuplicatesRemoved} Duplikate entfernt, {summary.RowCount} geschrieben");
+        AppendLog($"  Zeilen    : {summary.RowsRead} gelesen, {summary.DuplicatesRemoved} Duplikate entfernt, " +
+                  $"{summary.MergedRowCount} zusammengeführt");
+
+        if (summary.SearchText is not null)
+            AppendLog($"  Suche     : \"{summary.SearchText}\" → {summary.RowCount} Treffer gespeichert " +
+                      "(Groß-/Kleinschreibung egal)");
+        else
+            AppendLog($"  Zeilen    : {summary.RowCount} geschrieben");
+
         AppendLog($"  Spalten   : {summary.Columns.Count}");
         AppendLog($"  Spaltenfolge: {string.Join(" | ", summary.Columns)}");
         AppendLog($"  Datei     : {summary.OutputPath}");
 
-        _statusLabel.Text =
-            $"Fertig: {summary.RowCount:N0} Zeilen geschrieben · {summary.DuplicatesRemoved:N0} Duplikate entfernt · " +
-            $"{summary.Columns.Count} Spalten · {summary.Elapsed.TotalSeconds:0.0} s";
+        _statusLabel.Text = summary.SearchText is null
+            ? $"Fertig: {summary.RowCount:N0} Zeilen geschrieben · {summary.DuplicatesRemoved:N0} Duplikate entfernt · " +
+              $"{summary.Columns.Count} Spalten · {summary.Elapsed.TotalSeconds:0.0} s"
+            : $"Fertig: {summary.RowCount:N0} Treffer für \"{summary.SearchText}\" gespeichert · " +
+              $"{summary.MergedRowCount:N0} Zeilen durchsucht · {summary.Elapsed.TotalSeconds:0.0} s";
 
         if (_searchBox.Text.Trim().Length > 0)
             ShowMatches();

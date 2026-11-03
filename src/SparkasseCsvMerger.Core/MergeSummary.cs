@@ -5,6 +5,7 @@ public enum MergeStage
     Scanning,
     Reading,
     Merging,
+    Searching,
     Writing
 }
 
@@ -40,7 +41,9 @@ public sealed class MergeSummary
     public required IReadOnlyList<SourceReport> Sources { get; init; }
     public required int RowsRead { get; init; }
     public required int DuplicatesRemoved { get; init; }
+    public required int MergedRowCount { get; init; }
     public required int RowCount { get; init; }
+    public string? SearchText { get; init; }
     public required char Delimiter { get; init; }
     public required TimeSpan Elapsed { get; init; }
 

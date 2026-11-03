@@ -38,6 +38,7 @@ internal static class App
             QuoteAll = options.QuoteAll,
             ForcedEncoding = options.ForcedEncoding,
             ForcedDelimiter = options.ForcedDelimiter,
+            SearchText = options.SearchText,
             WriteOutput = !options.DryRun
         };
 
@@ -89,6 +90,11 @@ internal static class App
         Console.WriteLine($"  columns      : {summary.Columns.Count}");
         Console.WriteLine($"  rows read    : {summary.RowsRead}");
         Console.WriteLine($"  duplicates   : {summary.DuplicatesRemoved} removed");
+        Console.WriteLine($"  rows merged  : {summary.MergedRowCount}");
+
+        if (summary.SearchText is not null)
+            Console.WriteLine($"  search       : \"{summary.SearchText}\" -> {summary.RowCount} rows kept");
+
         Console.WriteLine($"  rows kept    : {summary.RowCount}");
 
         if (options.Verbose || summary.Columns.Count <= 16)

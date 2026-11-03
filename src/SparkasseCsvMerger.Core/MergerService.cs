@@ -62,16 +62,29 @@ public sealed class MergerService
         progress?.Report(new MergeProgress(MergeStage.Merging, "Zeilen werden zusammengeführt..."));
         MergeResult result = TransactionMerger.Merge(tables, options.Sort, options.RemoveDuplicates);
 
+        int mergedRowCount = result.Rows.Count;
+        string? searchTerm = string.IsNullOrWhiteSpace(options.SearchText) ? null : options.SearchText.Trim();
+        IReadOnlyList<string[]> outputRows = result.Rows;
+
+        if (searchTerm is not null)
+        {
+            IReadOnlyList<SearchHit> hits = MergeSearch.Find(result.Rows, searchTerm);
+            outputRows = hits.Select(hit => hit.Values).ToList();
+
+            progress?.Report(new MergeProgress(MergeStage.Searching,
+                $"{hits.Count} von {mergedRowCount} Zeilen enthalten \"{searchTerm}\"."));
+        }
+
         char delimiter = tables.All(table => table.Delimiter == ',') ? ',' : ';';
 
         if (options.WriteOutput)
         {
-            if (result.Rows.Count == 0)
+            if (outputRows.Count == 0 && searchTerm is null)
                 throw new MergeException("Nach dem Zusammenführen sind keine Datenzeilen übrig.");
 
             progress?.Report(new MergeProgress(MergeStage.Writing, $"Schreibe {outputPath}..."));
 
-            CsvOutputWriter.Write(outputPath, result.Columns, result.Rows, delimiter, options.QuoteAll);
+            CsvOutputWriter.Write(outputPath, result.Columns, outputRows, delimiter, options.QuoteAll);
         }
 
         cancellationToken.ThrowIfCancellationRequested();
@@ -84,7 +97,9 @@ public sealed class MergerService
             Sources = reports,
             RowsRead = result.RowsRead,
             DuplicatesRemoved = result.DuplicatesRemoved,
-            RowCount = result.Rows.Count,
+            MergedRowCount = mergedRowCount,
+            RowCount = outputRows.Count,
+            SearchText = searchTerm,
             Delimiter = delimiter,
             Elapsed = stopwatch.Elapsed
         };

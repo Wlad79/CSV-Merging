@@ -13,6 +13,7 @@ internal sealed class CliOptions
     public bool KeepDuplicates { get; set; }
     public string? ForcedEncoding { get; set; }
     public char? ForcedDelimiter { get; set; }
+    public string? SearchText { get; set; }
     public bool ShowHelp { get; set; }
 
     public const string HelpText = """
@@ -34,6 +35,7 @@ internal sealed class CliOptions
               --dry-run           Analyse and report, but write nothing
               --encoding <name>   Force input encoding (e.g. windows-1252, utf-8)
               --delimiter <char>  Force input delimiter: ; , | or tab
+              --grep <text>       Only write rows containing <text> (case-insensitive)
           -v, --verbose           Show per-file details (encoding, delimiter, skipped rows)
           -h, --help              Show this help
 
@@ -97,6 +99,12 @@ internal sealed class CliOptions
             if (TryReadValue(args, ref i, arg, null, "--delimiter", out string delimiter))
             {
                 options.ForcedDelimiter = ParseDelimiter(delimiter);
+                continue;
+            }
+
+            if (TryReadValue(args, ref i, arg, null, "--grep", out string search))
+            {
+                options.SearchText = search;
                 continue;
             }
 

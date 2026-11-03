@@ -45,11 +45,12 @@ Bedienung:
 3. **Optionen** – Duplikate entfernen, nach Datum sortieren, Unterordner einbeziehen.
 4. **Zusammenführen** – Fortschritt und Ergebnis stehen im Protokoll, danach lassen
    sich Ergebnis und Zielordner direkt öffnen.
-5. **Suche** – Suchbegriff eingeben und „Treffer anzeigen“ (oder Enter drücken). Das
-   Protokoll listet alle Datensätze auf, die den Begriff in irgendeiner Spalte
-   enthalten – ohne Beachtung der Groß-/Kleinschreibung. Ist beim Start der
-   Zusammenführung bereits ein Begriff eingetragen, wird die Suche automatisch
-   ausgeführt.
+5. **Suche** – Suchbegriff eingeben. Beim Klick auf **Zusammenführen** wird die Suche
+   auf das Ergebnis angewendet: Gespeichert werden nur die Datensätze, die den Begriff
+   in irgendeiner Spalte enthalten – ohne Beachtung der Groß-/Kleinschreibung. Die
+   Kopfzeile wird immer geschrieben (bei 0 Treffern also eine Datei nur mit Kopfzeile).
+   Ohne Suchbegriff wird wie bisher alles gespeichert. „Treffer anzeigen“ (oder Enter)
+   listet die Treffer zusätzlich im Protokoll auf.
 
 Die zuletzt verwendeten Einstellungen werden gespeichert unter
 `%APPDATA%\SparkasseCsvMerger\gui-settings.json`. Unerwartete Fehler landen in
@@ -100,6 +101,7 @@ SparkasseCsvMerger <input>... [Optionen]
 | `--dry-run` | nur analysieren und Bericht ausgeben, nichts schreiben |
 | `--encoding <name>` | Eingabe-Encoding erzwingen, z. B. `windows-1252` |
 | `--delimiter <zeichen>` | Trennzeichen erzwingen: `;` `,` `|` oder `tab` |
+| `--grep <text>` | nur Datensätze schreiben, die `<text>` enthalten (ohne Groß-/Kleinschreibung) – bei 0 Treffern bleibt nur die Kopfzeile |
 | `-v`, `--verbose` | Details je Datei (Encoding, Trennzeichen, übersprungene Zeilen) |
 | `-h`, `--help` | Hilfe |
 
@@ -114,6 +116,9 @@ dotnet run --project src/SparkasseCsvMerger -- export-2023.zip export-2024.zip k
 
 # Nur prüfen, was passieren würde
 dotnet run --project src/SparkasseCsvMerger -- "C:\Umsaetze" --dry-run -v
+
+# Nur Datensätze mit "Rundfunk" (ohne Groß-/Kleinschreibung) speichern
+dotnet run --project src/SparkasseCsvMerger -- "C:\Umsaetze" -o rundfunk.csv --grep rundfunk
 ```
 
 ## Was der Merger macht
@@ -143,8 +148,11 @@ dotnet run --project src/SparkasseCsvMerger -- "C:\Umsaetze" --dry-run -v
 8. **Sortieren** – standardmäßig aufsteigend nach `Buchungstag` (Fallback
    `Valutadatum`); Zeilen ohne Datum stehen am Ende. Die Originalschreibweise der
    Werte bleibt in der Ausgabe erhalten.
-9. **Schreiben** – eine Datei, UTF-8 mit BOM, `;` als Trennzeichen (bzw. `,` wenn alle
-   Quellen Komma nutzten), CRLF-Zeilenenden – direkt in Excel öffenbar.
+9. **Suche/Filter** – ist ein Suchbegriff gesetzt (GUI-Feld oder `--grep`), werden
+   nur Zeilen geschrieben, die den Begriff in mindestens einer Spalte enthalten
+   (ohne Groß-/Kleinschreibung). Bei 0 Treffern entsteht eine Datei nur mit Kopfzeile.
+10. **Schreiben** – eine Datei, UTF-8 mit BOM, `;` als Trennzeichen (bzw. `,` wenn alle
+    Quellen Komma nutzten), CRLF-Zeilenenden – direkt in Excel öffenbar.
 
 ## Hinweise / Grenzen
 

@@ -27,6 +27,9 @@ public sealed class MergeOptions
     /// <summary>Force the input separator instead of detecting it.</summary>
     public char? ForcedDelimiter { get; init; }
 
+    /// <summary>When set, only rows containing this text (case-insensitive) are written.</summary>
+    public string? SearchText { get; init; }
+
     /// <summary>When false the merge is only analysed, no file is written (dry run).</summary>
     public bool WriteOutput { get; init; } = true;
 }
