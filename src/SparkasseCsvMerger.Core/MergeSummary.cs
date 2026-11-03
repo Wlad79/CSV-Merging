@@ -36,6 +36,7 @@ public sealed class MergeSummary
 {
     public required string OutputPath { get; init; }
     public required IReadOnlyList<string> Columns { get; init; }
+    public required IReadOnlyList<string[]> Rows { get; init; }
     public required IReadOnlyList<SourceReport> Sources { get; init; }
     public required int RowsRead { get; init; }
     public required int DuplicatesRemoved { get; init; }

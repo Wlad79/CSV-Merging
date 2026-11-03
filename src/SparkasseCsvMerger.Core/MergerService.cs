@@ -80,6 +80,7 @@ public sealed class MergerService
         {
             OutputPath = outputPath,
             Columns = result.Columns,
+            Rows = result.Rows,
             Sources = reports,
             RowsRead = result.RowsRead,
             DuplicatesRemoved = result.DuplicatesRemoved,

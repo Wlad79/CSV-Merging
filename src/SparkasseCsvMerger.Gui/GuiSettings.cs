@@ -11,6 +11,7 @@ internal sealed class GuiSettings
     public bool RemoveDuplicates { get; set; } = true;
     public bool Sort { get; set; } = true;
     public bool Recursive { get; set; } = true;
+    public string SearchText { get; set; } = string.Empty;
 
     private static string SettingsPath => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),

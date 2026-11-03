@@ -45,6 +45,11 @@ Bedienung:
 3. **Optionen** – Duplikate entfernen, nach Datum sortieren, Unterordner einbeziehen.
 4. **Zusammenführen** – Fortschritt und Ergebnis stehen im Protokoll, danach lassen
    sich Ergebnis und Zielordner direkt öffnen.
+5. **Suche** – Suchbegriff eingeben und „Treffer anzeigen“ (oder Enter drücken). Das
+   Protokoll listet alle Datensätze auf, die den Begriff in irgendeiner Spalte
+   enthalten – ohne Beachtung der Groß-/Kleinschreibung. Ist beim Start der
+   Zusammenführung bereits ein Begriff eingetragen, wird die Suche automatisch
+   ausgeführt.
 
 Die zuletzt verwendeten Einstellungen werden gespeichert unter
 `%APPDATA%\SparkasseCsvMerger\gui-settings.json`. Unerwartete Fehler landen in

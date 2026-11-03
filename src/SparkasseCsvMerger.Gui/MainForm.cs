@@ -12,6 +12,8 @@ internal sealed class MainForm : Form
     private readonly CheckBox _dedupeCheck = new();
     private readonly CheckBox _sortCheck = new();
     private readonly CheckBox _recursiveCheck = new();
+    private readonly TextBox _searchBox = new();
+    private readonly Button _searchButton = new();
     private readonly TextBox _logBox = new();
     private readonly Button _startButton = new();
     private readonly Button _cancelButton = new();
@@ -28,6 +30,7 @@ internal sealed class MainForm : Form
 
     private CancellationTokenSource? _cancellation;
     private string? _lastOutput;
+    private MergeSummary? _lastSummary;
     private bool _running;
 
     public MainForm()
@@ -54,21 +57,23 @@ internal sealed class MainForm : Form
         {
             Dock = DockStyle.Fill,
             ColumnCount = 1,
-            RowCount = 5,
+            RowCount = 6,
             Padding = new Padding(12, 12, 12, 6)
         };
 
         root.RowStyles.Add(new RowStyle(SizeType.Percent, 38F));
         root.RowStyles.Add(new RowStyle(SizeType.Absolute, 118F));
         root.RowStyles.Add(new RowStyle(SizeType.Absolute, 50F));
+        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 46F));
         root.RowStyles.Add(new RowStyle(SizeType.Absolute, 52F));
         root.RowStyles.Add(new RowStyle(SizeType.Percent, 62F));
 
         root.Controls.Add(BuildSourceGroup(), 0, 0);
         root.Controls.Add(BuildTargetGroup(), 0, 1);
         root.Controls.Add(BuildOptionsPanel(), 0, 2);
-        root.Controls.Add(BuildButtonPanel(), 0, 3);
-        root.Controls.Add(BuildLogGroup(), 0, 4);
+        root.Controls.Add(BuildSearchPanel(), 0, 3);
+        root.Controls.Add(BuildButtonPanel(), 0, 4);
+        root.Controls.Add(BuildLogGroup(), 0, 5);
 
         Controls.Add(root);
         Controls.Add(BuildStatusStrip());
@@ -229,6 +234,45 @@ internal sealed class MainForm : Form
         return _optionsPanel;
     }
 
+    private TableLayoutPanel BuildSearchPanel()
+    {
+        var panel = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 3,
+            RowCount = 1,
+            Padding = new Padding(4, 6, 0, 0)
+        };
+
+        panel.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        panel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+        panel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 160F));
+
+        var label = new Label
+        {
+            Text = "Suche im Ergebnis:",
+            AutoSize = true,
+            Anchor = AnchorStyles.Left,
+            Margin = new Padding(0, 6, 10, 0)
+        };
+
+        _searchBox.Dock = DockStyle.Fill;
+        _searchBox.Margin = new Padding(0, 2, 8, 2);
+        _searchBox.AccessibleName = "Suchbegriff";
+        _searchBox.PlaceholderText = "Begriff eingeben – Groß-/Kleinschreibung wird ignoriert";
+        _searchBox.KeyDown += OnSearchBoxKeyDown;
+
+        _searchButton.Text = "Treffer anzeigen";
+        _searchButton.Dock = DockStyle.Fill;
+        _searchButton.Margin = new Padding(0, 1, 0, 1);
+        _searchButton.Click += (_, _) => ShowMatches();
+
+        panel.Controls.Add(label, 0, 0);
+        panel.Controls.Add(_searchBox, 1, 0);
+        panel.Controls.Add(_searchButton, 2, 0);
+        return panel;
+    }
+
     private FlowLayoutPanel BuildButtonPanel()
     {
         var panel = new FlowLayoutPanel
@@ -320,6 +364,7 @@ internal sealed class MainForm : Form
         _dedupeCheck.Checked = settings.RemoveDuplicates;
         _sortCheck.Checked = settings.Sort;
         _recursiveCheck.Checked = settings.Recursive;
+        _searchBox.Text = settings.SearchText ?? string.Empty;
     }
 
     private GuiSettings CollectSettings()
@@ -330,7 +375,8 @@ internal sealed class MainForm : Form
             FileName = _fileNameBox.Text.Trim(),
             RemoveDuplicates = _dedupeCheck.Checked,
             Sort = _sortCheck.Checked,
-            Recursive = _recursiveCheck.Checked
+            Recursive = _recursiveCheck.Checked,
+            SearchText = _searchBox.Text.Trim()
         };
 
         settings.Sources.AddRange(_sourceList.Items.Cast<string>());
@@ -542,6 +588,7 @@ internal sealed class MainForm : Form
         SaveSettings();
 
         _lastOutput = null;
+        _lastSummary = null;
         SetRunning(true);
         _cancellation = new CancellationTokenSource();
 
@@ -680,6 +727,7 @@ internal sealed class MainForm : Form
     private void OnFinished(MergeSummary summary)
     {
         _lastOutput = summary.OutputPath;
+        _lastSummary = summary;
 
         AppendLog(string.Empty);
         AppendLog($"Fertig in {summary.Elapsed.TotalSeconds:0.0} s");
@@ -692,6 +740,9 @@ internal sealed class MainForm : Form
         _statusLabel.Text =
             $"Fertig: {summary.RowCount:N0} Zeilen geschrieben · {summary.DuplicatesRemoved:N0} Duplikate entfernt · " +
             $"{summary.Columns.Count} Spalten · {summary.Elapsed.TotalSeconds:0.0} s";
+
+        if (_searchBox.Text.Trim().Length > 0)
+            ShowMatches();
     }
 
     private void SetRunning(bool running)
@@ -703,6 +754,8 @@ internal sealed class MainForm : Form
         _startButton.Enabled = !running;
         _cancelButton.Enabled = running;
         _statusProgress.Visible = running;
+        _searchBox.Enabled = !running;
+        _searchButton.Enabled = !running;
 
         if (running)
             _statusLabel.Text = "Läuft…";
@@ -719,6 +772,67 @@ internal sealed class MainForm : Form
     }
 
     // ------------------------------------------------------------------- helper
+
+    private void OnSearchBoxKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (e.KeyCode != Keys.Enter)
+            return;
+
+        e.SuppressKeyPress = true;
+        ShowMatches();
+    }
+
+    private void ShowMatches()
+    {
+        if (_lastSummary is null)
+        {
+            MessageBox.Show(this, "Bitte zuerst eine Zusammenführung starten.", "Suche",
+                MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+
+        string term = _searchBox.Text.Trim();
+
+        if (term.Length == 0)
+        {
+            MessageBox.Show(this, "Bitte einen Suchbegriff eingeben.", "Suche",
+                MessageBoxButtons.OK, MessageBoxIcon.Information);
+            _searchBox.Focus();
+            return;
+        }
+
+        IReadOnlyList<SearchHit> hits = MergeSearch.Find(_lastSummary.Rows, term);
+
+        AppendLog(string.Empty);
+        AppendLog($"=== Suche \"{term}\" (Groß-/Kleinschreibung egal): " +
+                  $"{hits.Count} Treffer von {_lastSummary.Rows.Count} Zeilen ===");
+
+        if (hits.Count == 0)
+        {
+            AppendLog("(keine Treffer)");
+        }
+        else
+        {
+            foreach (SearchHit hit in hits)
+                AppendLog(FormatHit(hit, _lastSummary.Columns));
+        }
+
+        _statusLabel.Text = $"Suche \"{term}\": {hits.Count} Treffer";
+    }
+
+    private static string FormatHit(SearchHit hit, IReadOnlyList<string> columns)
+    {
+        var parts = new List<string>(hit.Values.Length);
+
+        for (int i = 0; i < hit.Values.Length && i < columns.Count; i++)
+        {
+            string value = hit.Values[i];
+            if (value.Length > 0)
+                parts.Add($"{columns[i]}={value}");
+        }
+
+        return $"#{hit.Number,5}  {string.Join(" | ", parts)}";
+    }
 
     private void AppendLog(string line)
     {
